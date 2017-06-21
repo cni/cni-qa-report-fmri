@@ -13,6 +13,7 @@
   "inputs": {
     "nifti": {
       "base": "file",
+      "description": "Functional NIfTI data file.",
       "type": {
         "enum": [
           "nifti"
