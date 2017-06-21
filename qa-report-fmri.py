@@ -208,8 +208,7 @@ def generate_qa_report(nifti_file, nifti_path, force=False, spike_thresh=6., nsk
         except:
             median_tsnr = np.ma.median(0)
 
-
-        qa_filenames = [u'qa_report.json', u'qa_report.png']
+        qa_filenames = [os.path.basename(nifti_file).split('.')[0] + u'_qa_report.json', os.path.basename(nifti_file).split('.')[0] + u'_qa_report.png']
 
         json_file = os.path.join(nifti_path, qa_filenames[0])
         print("%s nifti file (%s) QA: writing report to %s..." % (time.asctime(), nifti_file, json_file))
@@ -251,5 +250,3 @@ class ArgumentParser(argparse.ArgumentParser):
 if __name__ == '__main__':
     args = ArgumentParser().parse_args()
     generate_qa_report(args.nifti_file, args.nifti_path, force=args.force, spike_thresh=args.spike_thresh, nskip=args.nskip)
-
-
