@@ -8,9 +8,9 @@
   "source": "https://github.com/cni/cni-qa-report-fmri",
   "license": "Apache-2.0",
   "flywheel": "0",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "custom": {
-    "docker-image": "stanfordcni/cni-qa-report-fmri:1.0.0",
+    "docker-image": "stanfordcni/cni-qa-report-fmri:1.0.1",
     "flywheel": {
       "suite": "Stanford CNI"
     }
