@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# @author:  Bob Dougherty
+# @author:  Bob Dougherty, Stanford CNI
 #
 
 import matplotlib
@@ -66,21 +66,17 @@ def plot_data(ts_z, abs_md, rel_md, tsnr, num_spikes, spike_thresh, outfile):
     ax2.axis('tight')
     ax2.grid()
     if num_spikes==1:
-        #ax2.set_title('Spike Plot (%d spike, tSNR=%0.2f)' % (num_spikes, tsnr))
-        ax2.set_title('Spike Plot (%d spike)' % (num_spikes))
+        ax2.set_title('Spike Plot (%d spike, tSNR=%0.2f)' % (num_spikes, tsnr))
     else:
-        #ax2.set_title('Spike Plot (%d spikes, tSNR=%0.2f)' % (num_spikes, tsnr))
-        ax2.set_title('Spike Plot (%d spikes)' % (num_spikes))
+        ax2.set_title('Spike Plot (%d spikes, tSNR=%0.2f)' % (num_spikes, tsnr))
     cbax = add_subplot_axes(fig, ax2, [.85,1.11, 0.25,0.05])
     plt.imshow(np.tile(c,(2,1,1)).transpose((0,1,2)), axes=cbax)
     cbax.set_yticks([])
     cbax.set_xlabel('Slice number')
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        plt.tight_layout()
+    plt.tight_layout()
     plt.savefig(outfile, bbox_inches='tight')
 
-def mask(d, raw_d=None, nskip=3, mask_bad_end_vols=True):
+def mask(d, raw_d=None, nskip=3, mask_bad_end_vols=False):
     mn = d[:,:,:,nskip:].mean(3)
     masked_data, mask = median_otsu(mn, 3, 2)
     mask = np.concatenate((np.tile(True, (d.shape[0], d.shape[1], d.shape[2], nskip)),
@@ -100,6 +96,8 @@ def mask(d, raw_d=None, nskip=3, mask_bad_end_vols=True):
         # We don't want to miss a bad volume somewhere in the middle, as that could be a valid artifact.
         # So, only mask bad vols that are contiguous to the end.
         mask_vols = np.array([np.all(bad[i:]) for i in range(bad.shape[0])])
+    else:
+        mask_vols = np.zeros(mask.shape[3], dtype=bool)
     # Mask out the skip volumes at the beginning
     mask_vols[0:nskip] = True
     mask[:,:,:,mask_vols] = True
@@ -128,7 +126,7 @@ def estimate_motion(nifti_image):
     # We want to use the middle time point as the reference. But the algorithm does't allow that, so fake it.
     ref_vol = nifti_image.shape[3]/2 + 1
     ims = nb.four_to_three(nifti_image)
-    reg = Realign4d(nb.concat_images([ims[ref_vol]] + ims), tr=1.) # in the next release, we'll need to add tr=1.
+    reg = Realign4d(nb.concat_images([ims[ref_vol]] + ims), tr=1) # in the next release, we'll need to add tr=1.
 
     reg.estimate(loops=3) # default: loops=5
     aligned = reg.resample(0)[:,:,:,1:]
@@ -180,9 +178,9 @@ def compute_qa(ni, tr, spike_thresh=6., nskip=4):
     tsnr = brain_aligned.mean(axis=3) / (brain_aligned - global_trend).std(axis=3)
     # convert rotations to degrees
     transrot[:,3:] *= 180./np.pi
-    return transrot,abs_disp,rel_disp,tsnr,global_ts,t_z,spike_inds,brain
+    return transrot,abs_disp,rel_disp,tsnr,global_ts,t_z,spike_inds
 
-def generate_qa_report(nifti_file, nifti_path, force=False, spike_thresh=6., nskip=4):
+def generate_qa_report(nifti_file, nifti_path, output_dir, force=False, spike_thresh=6., nskip=4):
     start_secs = time.time()
 
     print('%s nifti file (%s) QA: Starting QA report...' % (time.asctime(), nifti_file))
@@ -195,6 +193,7 @@ def generate_qa_report(nifti_file, nifti_path, force=False, spike_thresh=6., nsk
 
     if len(dims)<4 or dims[3]<nskip+3:
         print("%s nifti file (%s) QA: not enough timepoints in nifti; aborting." % (time.asctime(), nifti_file))
+        os.sys.exit(1) # right?
     else:
         if nifti_file.find('.nii.gz'):
             qa_file_name = nifti_file.replace('.nii.gz', '') + u'_qa'
@@ -202,34 +201,31 @@ def generate_qa_report(nifti_file, nifti_path, force=False, spike_thresh=6., nsk
             qa_file_name = os.path.splitext(nifti_file)[0]
 
         print("%s nifti file (%s) QA: computing report..." % (time.asctime(), nifti_file))
-        transrot,abs_disp,rel_disp,tsnr,global_ts,t_z,spike_inds,brain = compute_qa(ni, tr, spike_thresh, nskip)
-        try:
-            median_tsnr = np.ma.median(tsnr)[0]
-        except:
-            median_tsnr = np.ma.median(0)
+        transrot,abs_disp,rel_disp,tsnr,global_ts,t_z,spike_inds = compute_qa(ni, tr, spike_thresh, nskip)
+        median_tsnr = np.ma.median(tsnr)[0]
 
-        qa_filenames = [os.path.basename(nifti_file).split('.')[0] + u'_qa_report.json', os.path.basename(nifti_file).split('.')[0] + u'_qa_report.png']
+        qa_filenames = [os.path.basename(nifti_file).split('.')[0] + u'_qa_report.qa.json',
+                        os.path.basename(nifti_file).split('.')[0] + u'_qa_report.qa.png']
 
-        json_file = os.path.join(nifti_path, qa_filenames[0])
+        json_file = os.path.join(output_dir, qa_filenames[0])
         print("%s nifti file (%s) QA: writing report to %s..." % (time.asctime(), nifti_file, json_file))
 
         with open(json_file, 'w') as fp:
             json.dump({ 'version': qa_version,
                         'dataset': ni_fname, 'tr': tr.tolist(),
-                        'frame #': range(0,brain.shape[3]),
+                        'frame #': range(0,dims[3]),
                         'transrot': transrot.round(4).tolist(),
                         'mean displacement': abs_disp.round(2).tolist(),
                         'relative displacement': rel_disp.round(2).tolist(),
                         'max md': rel_disp.max().round(3).astype(float),
                         'median md': np.median(rel_disp).round(3).astype(float),
-                        'temporal SNR (median)': median_tsnr, #median_tsnr.round(3).astype(float),
+                        'temporal SNR (median)': median_tsnr.round(3).astype(float),
                         'global mean signal': global_ts.round(3).tolist(fill_value=round(global_ts.mean(),3)),
                         'timeseries zscore': t_z.round(1).tolist(fill_value=0),
                         'spikes': spike_inds.tolist(),
                         'spike thresh': spike_thresh},
                       fp)
-
-        img_file = os.path.join(nifti_path, qa_filenames[1])
+        img_file = os.path.join(output_dir, qa_filenames[1])
         print("%s nifti file (%s) QA: writing image to %s..." % (time.asctime(), nifti_file, img_file))
         plot_data(t_z, abs_disp, rel_disp, median_tsnr, spike_inds.shape[0], spike_thresh, img_file)
 
@@ -237,16 +233,29 @@ def generate_qa_report(nifti_file, nifti_path, force=False, spike_thresh=6., nsk
     return
 
 
-class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self):
-        super(ArgumentParser, self).__init__()
-        self.description = """Run quality assurance metrics and save the qa report."""
-        self.add_argument('nifti_path', metavar='DATA_PATH', help='Nifti File location (must be writable)')
-        self.add_argument('-f', '--force', default=False, action='store_true', help='force qa to run even it exists.')
-        self.add_argument('-i', '--nifti_file', type=str, help='Run QA metrics on just this nifti file.')
-        self.add_argument('-t', '--spike_thresh', type=float, default=6., metavar='[6.0]', help='z-score threshold for spike detector.')
-        self.add_argument('-n', '--nskip', type=int, default=6, metavar='[6]', help='number of initial timepoints to skip.')
 
 if __name__ == '__main__':
-    args = ArgumentParser().parse_args()
-    generate_qa_report(args.nifti_file, args.nifti_path, force=args.force, spike_thresh=args.spike_thresh, nskip=args.nskip)
+
+    config_file = '/flywheel/v0/config.json'
+    output_dir = '/flywheel/v0/output'
+
+    # Parse all of the input arguments from the config.json file
+    if not os.path.isfile(config_file):
+        raise AssertionError('No Config File FOUND!')
+    else:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+
+    # Run Report
+    generate_qa_report(config['inputs']['nifti']['location']['name'],
+                       os.path.dirname(config['inputs']['nifti']['location']['path']),
+                       output_dir,
+                       force=False,
+                       spike_thresh=config['config']['spike_thresh'],
+                       nskip=config['config']['spike_thresh'])
+
+    # TODO Generate metadata
+    # Based on the json output - perhaps.
+
+    # Exit
+    sys.exit(0)

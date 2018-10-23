@@ -47,6 +47,6 @@ RUN mkdir -p ${FLYWHEEL}
 COPY manifest.json ${FLYWHEEL}/manifest.json
 
 # Put the python code in place
-COPY qa-report-fmri.py ${FLYWHEEL}/run.py
+COPY qa-report-fmri.py ${FLYWHEEL}/run
 
 ENTRYPOINT ["/flywheel/v0/run"]
