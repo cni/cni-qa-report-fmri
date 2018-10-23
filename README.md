@@ -2,7 +2,7 @@
 [![Docker Stars](https://img.shields.io/docker/stars/stanfordcni/cni-qa-report-fmri.svg)](https://hub.docker.com/r/stanfordcni/cni-qa-report-fmri/)
 
 # stanfordcni/cni-qa-report-fmri
-Calculate QA metrics (displacement, signal spikes, etc.) to create a quality assurance report (png) for an fMRI NIfTI dataset using [CNI/NIMS code](https://github.com/cni/nims/blob/master/nimsproc/qa_report.py) from @rfdougherty.
+Calculate QA metrics (displacement, signal spikes, etc.) to create a quality assurance report (png) for an fMRI NIfTI dataset using [code](qa-report-fmri.py) adapted from [CNI/NIMS code](https://github.com/cni/nims/blob/master/nimsproc/qa_report.py) from @rfdougherty.
 
 
 ## What's in the QA report
@@ -48,4 +48,4 @@ __3. Scanner spikes, little subject motion (good subject, spikey scanner)__
 ![QA_Spikes](https://cni.stanford.edu/cniwiki/images/0/05/Qa_spikes.png)
 
 ## Source Code
-The QA report generation code is part of the NIMS codebase and is [available on Github](https://github.com/cni/nims/blob/master/nimsproc/qa_report.py).
+The original QA report generation code, from which [this code](qa-report-fmri.py) is adapted, is part of the CNI's NIMS codebase and is [available on Github](https://github.com/cni/nims/blob/master/nimsproc/qa_report.py).
