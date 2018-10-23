@@ -4,7 +4,7 @@
   "description": "Run QA metrics (displacement, signal spikes) to create a quality assurance report (png) for an fMRI NIfTI using CNI/NIMS code.",
   "maintainer": "Michael Perry <lmperry@stanford.edu>",
   "author": "Robert F. Dougherty, Hua Wu",
-  "url": "https://github.com/cni/nims/blob/master/nimsproc/qa_report.py",
+  "url": "https://cni.stanford.edu/wiki/QA",
   "source": "https://github.com/cni/cni-qa-report-fmri",
   "license": "Apache-2.0",
   "flywheel": "0",
