@@ -20,6 +20,77 @@ import warnings
 
 qa_version = 1.0
 
+# Generate metadata
+def generate_metadata(config, qa_stats_file):
+    """
+    Generate file metadata. Builds file.info from QA json file. Also sets the
+    classification from the input config.json file, as provided by Flywheel
+
+    Input:
+        config_file:    Path to config.json file.
+      qa_stats_file:    path to stats file
+
+    Output:
+        metadata_file:   Path to .metadata.json file.
+    """
+    print('%s  Generating metadata...' % (time.asctime()))
+    outbase = '/flywheel/v0/output'
+    output_files = os.listdir(outbase)
+    files = []
+
+    if len(output_files) > 0:
+        (modality, classification) = (None, [])
+        try:
+            modality = config['inputs']['nifti']['object']['modality']
+            classification = config['inputs']['nifti']['object']['classification']
+        except:
+            print('\tCannot determine classification/modality from config.json.')
+
+        if qa_stats_file and os.path.isfile(qa_stats_file):
+            with open(qa_stats_file) as qa_f:
+                qa_info = json.load(qa_f, strict=False)
+        else:
+            print('%s  Could not find %s' % (time.asctime(), qa_stats_file))
+            qa_info = None
+
+        # Clean up qa_info
+        if qa_info:
+            try:
+                del qa_info['frame #']
+                del qa_info['transrot']
+                del qa_info['relative displacement']
+                del qa_info['timeseries zscore']
+                del qa_info['mean displacement']
+                del qa_info['global mean signal']
+                qa_info['spike count'] = len(qa_info['spikes'])
+            except:
+                print('\tProblem cleaning qa_info!')
+                qa_info = None
+
+
+        for f in output_files:
+            if os.path.isfile(os.path.join(outbase, f)):
+                fdict = {}
+                fdict['name'] = f
+                fdict['classification'] = classification
+
+                if qa_info:
+                    fdict['info'] = qa_info
+
+                files.append(fdict)
+
+        # Collate the metadata and write to file
+        metadata = {}
+        metadata['acquisition'] = {}
+        metadata['acquisition']['files'] = files
+        metadata_file = os.path.join(outbase, '.metadata.json')
+        with open(metadata_file, 'w') as metafile:
+            json.dump(metadata, metafile)
+
+        print('%s  Generated %s' % (time.asctime(), metadata_file))
+
+    return metadata_file
+
 def add_subplot_axes(fig, ax, rect, axisbg='w'):
     box = ax.get_position()
     width = box.width
@@ -183,7 +254,7 @@ def compute_qa(ni, tr, spike_thresh=6., nskip=4):
 def generate_qa_report(nifti_file, nifti_path, output_dir, force=False, spike_thresh=6., nskip=4):
     start_secs = time.time()
 
-    print('%s nifti file (%s) QA: Starting QA report...' % (time.asctime(), nifti_file))
+    print('%s  %s QA: Starting QA report...' % (time.asctime(), nifti_file))
 
     ni_fname = os.path.join(nifti_path, nifti_file)
 
@@ -192,27 +263,23 @@ def generate_qa_report(nifti_file, nifti_path, output_dir, force=False, spike_th
     dims = ni.get_shape()
 
     if len(dims)<4 or dims[3]<nskip+3:
-        print("%s nifti file (%s) QA: not enough timepoints in nifti; aborting." % (time.asctime(), nifti_file))
-        os.sys.exit(1) # right?
+        print("%s  %s QA: not enough timepoints in nifti; aborting." % (time.asctime(), nifti_file))
+        sys.exit(1)
     else:
-        if nifti_file.find('.nii.gz'):
-            qa_file_name = nifti_file.replace('.nii.gz', '') + u'_qa'
-        else:
-            qa_file_name = os.path.splitext(nifti_file)[0]
-
-        print("%s nifti file (%s) QA: computing report..." % (time.asctime(), nifti_file))
+        print("%s  %s QA: computing report..." % (time.asctime(), nifti_file))
         transrot,abs_disp,rel_disp,tsnr,global_ts,t_z,spike_inds = compute_qa(ni, tr, spike_thresh, nskip)
         median_tsnr = np.ma.median(tsnr)[0]
 
-        qa_filenames = [os.path.basename(nifti_file).split('.')[0] + u'_qa_report.qa.json',
-                        os.path.basename(nifti_file).split('.')[0] + u'_qa_report.qa.png']
+        qa_filenames = [os.path.basename(nifti_file).split('.')[0] + u'.qa.json',
+                        os.path.basename(nifti_file).split('.')[0] + u'.qa.png']
 
         json_file = os.path.join(output_dir, qa_filenames[0])
-        print("%s nifti file (%s) QA: writing report to %s..." % (time.asctime(), nifti_file, json_file))
+        print("%s  %s QA: writing report to %s..." % (time.asctime(), nifti_file, json_file))
 
         with open(json_file, 'w') as fp:
             json.dump({ 'version': qa_version,
-                        'dataset': ni_fname, 'tr': tr.tolist(),
+                        'dataset': nifti_file,
+                        'tr': tr.tolist(),
                         'frame #': range(0,dims[3]),
                         'transrot': transrot.round(4).tolist(),
                         'mean displacement': abs_disp.round(2).tolist(),
@@ -226,11 +293,11 @@ def generate_qa_report(nifti_file, nifti_path, output_dir, force=False, spike_th
                         'spike thresh': spike_thresh},
                       fp)
         img_file = os.path.join(output_dir, qa_filenames[1])
-        print("%s nifti file (%s) QA: writing image to %s..." % (time.asctime(), nifti_file, img_file))
+        print("%s  %s QA: writing image to %s..." % (time.asctime(), nifti_file, img_file))
         plot_data(t_z, abs_disp, rel_disp, median_tsnr, spike_inds.shape[0], spike_thresh, img_file)
 
-        print("%s nifti file (%s) QA: Finished in %0.2f minutes." % (time.asctime(), nifti_file, (time.time()-start_secs)/60.))
-    return
+        print("%s  %s QA: Finished in %0.2f minutes." % (time.asctime(), nifti_file, (time.time()-start_secs)/60.))
+    return json_file, img_file
 
 
 
@@ -247,15 +314,20 @@ if __name__ == '__main__':
             config = json.load(f)
 
     # Run Report
-    generate_qa_report(config['inputs']['nifti']['location']['name'],
-                       os.path.dirname(config['inputs']['nifti']['location']['path']),
-                       output_dir,
-                       force=False,
-                       spike_thresh=config['config']['spike_thresh'],
-                       nskip=config['config']['spike_thresh'])
+    json_file, img_file = generate_qa_report(config['inputs']['nifti']['location']['name'],
+                                           os.path.dirname(config['inputs']['nifti']['location']['path']),
+                                           output_dir,
+                                           force=False,
+                                           spike_thresh=config['config']['spike_thresh'],
+                                           nskip=config['config']['spike_thresh'])
 
-    # TODO Generate metadata
-    # Based on the json output - perhaps.
+    # Generate metadata
+    metadata_file = generate_metadata(config, json_file)
 
     # Exit
-    sys.exit(0)
+    if os.path.exists(img_file) and os.path.exists(metadata_file):
+        print('%s  QA: Success!' % (time.asctime()))
+        sys.exit(0)
+    else:
+        print('%s  QA: Failure! One or more output files are missing!' % (time.asctime()))
+        sys.exit(1)
