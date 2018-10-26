@@ -263,8 +263,8 @@ def generate_qa_report(nifti_file, nifti_path, output_dir, force=False, spike_th
     dims = ni.get_shape()
 
     if len(dims)<4 or dims[3]<nskip+3:
-        print("%s  %s QA: not enough timepoints in nifti; aborting." % (time.asctime(), nifti_file))
-        sys.exit(1)
+        print("%s  %s QA: There are not enough timepoints in this nifti to run the QA process. len(dims)=%d (must be >=4). dims[3]=%d (must be greater than the number of frames to skip + 3 (which is %d based on your config)). \nThis is not an error, simply nothing to do here. Goodbye." % (time.asctime(), nifti_file, len(dims), dims[3], nskip+3))
+        sys.exit(0)
     else:
         print("%s  %s QA: computing report..." % (time.asctime(), nifti_file))
         transrot,abs_disp,rel_disp,tsnr,global_ts,t_z,spike_inds = compute_qa(ni, tr, spike_thresh, nskip)
