@@ -1,4 +1,4 @@
-# stanfordcni/cni-qa_report_fmri
+# stanfordcni/cni-qa-report-fmri
 #
 # Use modified CNI/NIMS code from @rfdougherty to create a qa_report for a given fmri NIfTI file in Flywheel spec.
 # See https://github.com/cni/nims/blob/master/nimsproc/qa_report.py for original source code.
