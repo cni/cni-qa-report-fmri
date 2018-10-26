@@ -33,6 +33,8 @@ def generate_metadata(config, qa_stats_file):
     Output:
         metadata_file:   Path to .metadata.json file.
     """
+    from pprint import pprint as pp
+
     print('%s  Generating metadata...' % (time.asctime()))
     outbase = '/flywheel/v0/output'
     output_files = os.listdir(outbase)
@@ -87,7 +89,7 @@ def generate_metadata(config, qa_stats_file):
         with open(metadata_file, 'w') as metafile:
             json.dump(metadata, metafile)
 
-        print('%s  Generated %s' % (time.asctime(), metadata_file))
+        pp(metadata)
 
     return metadata_file
 
@@ -313,6 +315,23 @@ if __name__ == '__main__':
         with open(config_file, 'r') as f:
             config = json.load(f)
 
+    # Check if this is a Funcitonal scan
+    classification = []
+    if config['config']['require_functional'] == True:
+        if config['inputs']['nifti']['object'].has_key('classification') and config['inputs']['nifti']['object']['classification'].has_key('Intent'):
+            classification = config['inputs']['nifti']['object']['classification']
+            if 'Functional' not in classification['Intent']:
+                print('%s  QA: This algorithm is designed for fMRI (Functional) datasets.' % (time.asctime()))
+                print('%s  QA: These data are not classified as "Intent=Functional" and config.require_functional==true.' % (time.asctime()))
+                print('%s  QA: If you want to force this dataset through, then re-run and set config.require_functional==false or correctly classify this dataset.' % (time.asctime()))
+                print('%s  QA: No errors here, but I will exit now.' % (time.asctime()))
+                sys.exit(0)
+        else:
+            print('%s  QA: This algorithm is designed for fMRI (Functional) datasets.' % (time.asctime()))
+            print('%s  QA: No classification info found and config.require_functional==true.' % (time.asctime()))
+            print('%s  QA: If you want to force this dataset through, then re-run and set config.require_functional==false, or modify the classifcation of this dataset to include Functional Intent.' % (time.asctime()))
+            print('%s  QA: No errors here, but I will exit now.' % (time.asctime()))
+            sys.exit(0)
     # Run Report
     json_file, img_file = generate_qa_report(config['inputs']['nifti']['location']['name'],
                                            os.path.dirname(config['inputs']['nifti']['location']['path']),

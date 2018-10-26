@@ -25,6 +25,11 @@
       "description": "Number of initial time-points to skip. [ DEFAULT = 6 ]",
       "default": 6,
       "type": "integer"
+    },
+    "require_functional": {
+      "description": "Require that the dataset be classified as Intent==Functional. [ DEFAULT = true ]. If true, the gear will exit (0) without attempting to process the data.",
+      "default": true,
+      "type": "boolean"
     }
   },
   "inputs": {
