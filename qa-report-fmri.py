@@ -75,6 +75,7 @@ def generate_metadata(config, qa_stats_file):
                 fdict = {}
                 fdict['name'] = f
                 fdict['classification'] = classification
+                fdict['modality'] = modality
 
                 if qa_info:
                     fdict['info'] = qa_info
