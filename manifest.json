@@ -10,7 +10,6 @@
   "flywheel": "0",
   "version": "1.0.4",
   "custom": {
-    "docker-image": "stanfordcni/cni-qa-report-fmri:1.0.4",
     "flywheel": {
       "suite": "Quality Assurance",
       "classification": {
@@ -33,7 +32,8 @@
       }
     },
     "gear-builder": {
-      "category": "qa"
+      "category": "qa",
+      "image": "stanfordcni/cni-qa-report-fmri:1.0.4"
     }
   },
   "config": {
